@@ -4,7 +4,7 @@
 
 #define SCREEN_WIDTH 800
 #define SCREEN_HEIGHT 600
-#define MAX_RECORDS 1000
+#define MAX_RECORDS 10000
 
 typedef struct {
     float x, y, t;
@@ -149,6 +149,17 @@ int main() {
             DrawText("Rewind", rewindButton.x + 10, rewindButton.y + 7, 20, WHITE);
             DrawRectangleRec(timeline, LIGHTGRAY);
         } else {
+            for (int x = 0; x < SCREEN_WIDTH; x += 50) {
+                DrawLine(x + pan.x, 0, x + pan.x, SCREEN_HEIGHT, LIGHTGRAY);
+            }
+            for (int y = 0; y < SCREEN_HEIGHT; y += 50) {
+                DrawLine(0, y + pan.y, SCREEN_WIDTH, y + pan.y, LIGHTGRAY);
+            }
+            DrawLine(SCREEN_WIDTH / 2 + pan.x, 0, SCREEN_WIDTH / 2 + pan.x, SCREEN_HEIGHT, DARKGRAY);
+            DrawLine(0, SCREEN_HEIGHT / 2 + pan.y, SCREEN_WIDTH, SCREEN_HEIGHT / 2 + pan.y, DARKGRAY);
+            DrawText("X", SCREEN_WIDTH - 20 + pan.x, SCREEN_HEIGHT / 2 + pan.y, 20, DARKGRAY);
+            DrawText("Y", SCREEN_WIDTH / 2 + pan.x, 20 + pan.y, 20, DARKGRAY);
+
             DrawText("Graphing Mode", 10, 10, 20, DARKGRAY);
             for (int i = 1; i < recordIndex; i++) {
                 DrawLine(records[i - 1].t * 100 * zoom + pan.x, SCREEN_HEIGHT - records[i - 1].y * zoom + pan.y,
