@@ -1,69 +1,66 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.interpolate import interp1d
 
-def generate_balanced_wave(sample_rate=1000, duration=1, randomness=0.5):
-    """Generate a randomized wave that always has both positive and negative parts."""
-    t = np.linspace(0, duration, sample_rate * duration, endpoint=False)
-    wave = np.sin(2 * np.pi * 3 * t)  
-    
-    for _ in range(5):
-        freq = np.random.uniform(1, 10)  # Random frequency
-        phase = np.random.uniform(0, 2 * np.pi)
-        amp = np.random.uniform(0.3, 1.0) * randomness
-        wave += amp * np.sin(2 * np.pi * freq * t + phase)
+# Read wave data from file
+def read_wave_from_file(filename):
+    times, values = [], []
+    with open(filename, 'r') as file:
+        for line in file:
+            parts = line.strip().split(',')
+            if len(parts) == 2:
+                time, value = map(float, parts)
+                times.append(time)
+                values.append(value)
+    return np.array(times), np.array(values)
 
-    wave -= np.mean(wave)  # Center the wave around zero
-    return t, wave
+# Find zero crossings
+def find_zero_crossings(wave):
+    crossings = []
+    for i in range(1, len(wave)):
+        if wave[i - 1] <= 0 < wave[i] or wave[i - 1] >= 0 > wave[i]:
+            crossings.append(i)
+    return crossings
 
-def find_zero_crossings(t, wave):
-    """Find indices where the wave crosses y=0."""
-    zero_crossings = np.where(np.diff(np.sign(wave)))[0]  
-    return zero_crossings
-
-def split_into_full_cycles(t, wave, zero_crossings):
-    """Split wave into full cycles (two zero crossings)."""
+# Extract cycles using zero crossings
+def extract_cycles(times, wave, crossings):
     cycles = []
-    for i in range(len(zero_crossings) - 2):
-        start, end = zero_crossings[i], zero_crossings[i + 2]
-        cycles.append((t[start:end] - t[start], wave[start:end]))  # Normalize time to start at 0
-    return cycles
+    for i in range(len(crossings) - 2):  # Ensure full cycles
+        start, end = crossings[i], crossings[i + 2]
+        cycle_time = times[start:end]
+        cycle_values = wave[start:end]
 
-def interpolate_cycles(cycles, num_points=100):
-    """Resample all cycles to a fixed number of points."""
-    resampled_cycles = []
-    for t_cycle, wave_cycle in cycles:
-        interp_func = interp1d(t_cycle, wave_cycle, kind='linear', fill_value="extrapolate")
-        t_uniform = np.linspace(0, t_cycle[-1], num_points)
-        wave_uniform = interp_func(t_uniform)
-        resampled_cycles.append(wave_uniform)
-    return np.array(resampled_cycles), np.linspace(0, np.mean([c[0][-1] for c in cycles]), num_points)
+        # Normalize length to avoid distortion
+        resampled_time = np.linspace(0, 1, 100)
+        resampled_values = np.interp(resampled_time, np.linspace(0, 1, len(cycle_values)), cycle_values)
 
-def visualize_stacked_cycles(cycles, avg_cycle, t_avg):
-    """Plot stacked cycles and their average."""
-    plt.figure(figsize=(10, 5))
+        # Normalize to prevent flattening
+        resampled_values -= np.mean(resampled_values)  # Center around 0
+        resampled_values /= np.max(np.abs(resampled_values))  # Normalize amplitude
+
+        cycles.append(resampled_values)
     
-    # Plot all individual cycles
+    return np.array(cycles)
+
+# Compute the average cycle
+def compute_average_cycle(cycles):
+    return np.mean(cycles, axis=0) * np.max(np.abs(cycles))  # Scale back amplitude
+
+# Plot results
+def plot_cycles(cycles, avg_cycle):
+    plt.figure(figsize=(10, 5))
     for cycle in cycles:
         plt.plot(np.linspace(0, 1, len(cycle)), cycle, color='gray', alpha=0.3)
-    
-    # Plot the average cycle
     plt.plot(np.linspace(0, 1, len(avg_cycle)), avg_cycle, color='red', linewidth=2, label="Averaged Cycle")
-    
-    plt.title("Stacked Cycles and Averaged Cycle")
     plt.xlabel("Normalized Time")
-    plt.ylabel("Amplitude")
+    plt.ylabel("Wave Amplitude")
     plt.legend()
     plt.show()
 
-# Run the steps
-t, wave = generate_balanced_wave()
-zero_crossings = find_zero_crossings(t, wave)
-cycles = split_into_full_cycles(t, wave, zero_crossings)
-resampled_cycles, t_avg = interpolate_cycles(cycles)
-
-# Compute the average cycle
-avg_cycle = np.mean(resampled_cycles, axis=0)
-
-# Visualize
-visualize_stacked_cycles(resampled_cycles, avg_cycle, t_avg)
+# Main execution
+filename = "wave.txt"
+times, wave = read_wave_from_file(filename)
+wave -= np.mean(wave)  # Center the wave
+crossings = find_zero_crossings(wave)
+cycles = extract_cycles(times, wave, crossings)
+avg_cycle = compute_average_cycle(cycles)
+plot_cycles(cycles, avg_cycle)
