@@ -1,4 +1,6 @@
+#define RAYGUI_IMPLEMENTATION
 #include "raylib.h"
+#include "raygui.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -6,6 +8,7 @@
 #define SCREEN_WIDTH 1366
 #define SCREEN_HEIGHT 768
 #define MAX_RECORDS 10000
+#define COLOR_TO_INT(c) ((c.r << 16) | (c.g << 8) | (c.b))
 
 typedef struct {
     float x, y, t;
@@ -20,17 +23,7 @@ typedef struct {
     Vector2 pos; 
     float rad;
     PositionRecord records[MAX_RECORDS]; 
-} PositionRecordedObject; 
-
-PositionRecordedObject circle = {
-    .pos = {SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2}, 
-    .rad = 50.0f,
-    .records = {0}
-};
-// TODO: (trantr) add more circles 
-int recordIndex = 0;
-View currentView = VIEW_MAIN;
-const Rectangle switchViewButton = {SCREEN_WIDTH - 100, 10, 80, 30};
+} PositionRecordedObject;
 
 typedef struct {
     Vector2 mousePos;
@@ -58,6 +51,19 @@ typedef struct {
 } SecondViewState;
 
 UIState ui_state = {}; 
+PositionRecordedObject *ptrCurrentCircle;
+PositionRecordedObject circles[10];
+PositionRecordedObject circle = {
+    .pos = {SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2}, 
+    .rad = 50.0f,
+    .records = {0}
+};
+
+// TODO: (trantr) add more circles 
+int recordIndex = 0;
+View currentView = VIEW_MAIN;
+const Rectangle switchViewButton = {SCREEN_WIDTH - 100, 10, 80, 30};
+
 
 void update_first_view_state(FirstViewState *first_view_state) {
     if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
@@ -86,10 +92,7 @@ void update_first_view_state(FirstViewState *first_view_state) {
     }
 
     if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-        if (CheckCollisionPointRec(ui_state.mousePos, first_view_state->playButton)) {
-            first_view_state->isPlaying = true;
-            first_view_state->isPaused = false;
-        } else if (CheckCollisionPointRec(ui_state.mousePos, first_view_state->pauseButton)) {
+        if (CheckCollisionPointRec(ui_state.mousePos, first_view_state->pauseButton)) {
             first_view_state->isPaused = !first_view_state->isPaused;
         } else if (CheckCollisionPointRec(ui_state.mousePos, first_view_state->rewindButton)) {
             first_view_state->playbackIndex = 0;
@@ -118,17 +121,23 @@ void update_first_view_state(FirstViewState *first_view_state) {
     }
 }
 
-void draw_first_view(const FirstViewState *first_view_state) {
+void draw_first_view(FirstViewState *first_view_state) {
     for (int i = 1; i < recordIndex; i++) {
         float intensity = circle.records[i].t / circle.records[recordIndex - 1].t;
         Color pathColor = (Color){0, 0, 255, (unsigned char)(intensity * 255)};
         DrawLineV((Vector2){circle.records[i - 1].x, circle.records[i - 1].y}, (Vector2){circle.records[i].x, circle.records[i].y}, pathColor);
     }
     DrawCircleV(circle.pos, circle.rad, first_view_state->isDragging ? DARKGRAY : BLUE);
-    DrawRectangleRec(first_view_state->playButton, GREEN);
+
+    GuiSetStyle(BUTTON, BASE_COLOR_NORMAL, COLOR_TO_INT(GREEN));
+    GuiSetStyle(BUTTON, TEXT_COLOR_NORMAL, COLOR_TO_INT(WHITE));
+    if(GuiButton(first_view_state->playButton, "Play")) {
+        first_view_state->isPlaying = true;
+        first_view_state->isPaused = false;
+    }
+
     DrawRectangleRec(first_view_state->pauseButton, ORANGE);
     DrawRectangleRec(first_view_state->rewindButton, RED);
-    DrawText("Play", first_view_state->playButton.x + 20, first_view_state->playButton.y + 7, 20, WHITE);
     DrawText("Pause", first_view_state->pauseButton.x + 15, first_view_state->pauseButton.y + 7, 20, WHITE);
     DrawText("Rewind", first_view_state->rewindButton.x + 10, first_view_state->rewindButton.y + 7, 20, WHITE);
     DrawRectangleRec(first_view_state->timeline, LIGHTGRAY);
@@ -223,13 +232,10 @@ int main() {
         .zoom = 50.0f // Pixels per unit
     }; 
 
+    // Change button color (default state)
     while (!WindowShouldClose()) {
         ui_state.mousePos = GetMousePosition();
         ui_state.currentTime = GetTime();
-
-        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && CheckCollisionPointRec(ui_state.mousePos, switchViewButton)) {
-            currentView = (currentView == VIEW_MAIN) ? VIEW_SECONDARY : VIEW_MAIN;
-        }
 
         if (currentView == VIEW_MAIN) {
             update_first_view_state(&first_view_state);
@@ -246,9 +252,13 @@ int main() {
         else if (currentView == VIEW_SECONDARY){
             draw_second_view(&second_view_state);
         }
-        
-        DrawRectangleRec(switchViewButton, BLUE);
-        DrawText("Switch", switchViewButton.x + 10, switchViewButton.y + 7, 20, WHITE);
+
+        GuiSetStyle(BUTTON, BORDER_COLOR_NORMAL, 0x0000FF);  // Blue border
+        GuiSetStyle(BUTTON, BASE_COLOR_NORMAL, 0x00FF00);    // Green background
+        GuiSetStyle(BUTTON, TEXT_COLOR_NORMAL, 0xFFFFFF);    // White text
+        if(GuiButton(switchViewButton, "Switch")) {
+            currentView = (currentView == VIEW_MAIN) ? VIEW_SECONDARY : VIEW_MAIN;
+        }
 
         EndDrawing();
     }
