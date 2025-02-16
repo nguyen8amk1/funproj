@@ -10,6 +10,8 @@
 #define MAX_RECORDS 10000
 #define COLOR_TO_INT(c) ((c.r << 16) | (c.g << 8) | (c.b))
 
+/* TODO: (nttn), current app idea: geometric contraints editor and position record + average 
+ * */ 
 typedef struct {
     float x, y, t;
 } PositionRecord;
@@ -42,6 +44,7 @@ typedef struct {
     Rectangle playButton;
     Rectangle pauseButton;
     Rectangle rewindButton;
+    Rectangle dumpButton; // New button for dumping data
     Rectangle timeline;
 } FirstViewState;
 
@@ -64,6 +67,18 @@ int recordIndex = 0;
 View currentView = VIEW_MAIN;
 const Rectangle switchViewButton = {SCREEN_WIDTH - 100, 10, 80, 30};
 
+void dump_recorded_data_to_file(const char* filename) {
+    FILE *file = fopen(filename, "w");
+    if (file == NULL) {
+        printf("Failed to open file for writing\n");
+        return;
+    }
+    for (int i = 0; i < recordIndex; i++) {
+        fprintf(file, "x = %f, y = %f, t = %f\n", i, circle.records[i].x, circle.records[i].y, circle.records[i].t);
+    }
+    fclose(file);
+    printf("Data successfully dumped to %s\n", filename);
+}
 
 void update_first_view_state(FirstViewState *first_view_state) {
     if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
@@ -82,6 +97,9 @@ void update_first_view_state(FirstViewState *first_view_state) {
     if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
         first_view_state->isDragging = false;
         first_view_state->isScrubbing = false;
+        for(int i = 0; i < recordIndex; i++) {
+            printf("%f, %f\n", circle.records[i].t, circle.records[i].y); 
+        }
     }
 
     if (first_view_state->isDragging && recordIndex < MAX_RECORDS) {
@@ -96,6 +114,8 @@ void update_first_view_state(FirstViewState *first_view_state) {
             first_view_state->isPaused = !first_view_state->isPaused;
         } else if (CheckCollisionPointRec(ui_state.mousePos, first_view_state->rewindButton)) {
             first_view_state->playbackIndex = 0;
+        } else if (CheckCollisionPointRec(ui_state.mousePos, first_view_state->dumpButton)) { // Check for dump button press
+            dump_recorded_data_to_file("recorded_data.txt");
         }
     }
     
@@ -145,8 +165,13 @@ void draw_first_view(FirstViewState *first_view_state) {
         float scrubberX = first_view_state->timeline.x + (first_view_state->timeline.width * first_view_state->playbackIndex / recordIndex);
         DrawRectangle(scrubberX, first_view_state->timeline.y - 5, 10, 20, RED);
     }
-}
 
+    GuiSetStyle(BUTTON, BASE_COLOR_NORMAL, COLOR_TO_INT(ORANGE));
+    GuiSetStyle(BUTTON, TEXT_COLOR_NORMAL, COLOR_TO_INT(WHITE));
+    if(GuiButton(first_view_state->dumpButton, "Dump Data")) {
+        dump_recorded_data_to_file("recorded_data.txt");
+    }
+}
 
 void update_second_view_state(SecondViewState *second_view_state) {
     // Handle zoom
@@ -224,6 +249,7 @@ int main() {
         .playButton = {10, SCREEN_HEIGHT - 50, 80, 30}, 
         .pauseButton = {100, SCREEN_HEIGHT - 50, 80, 30}, 
         .rewindButton = {190, SCREEN_HEIGHT - 50, 80, 30}, 
+        .dumpButton = {280, SCREEN_HEIGHT - 50, 110, 30}, // New button for dumping data
         .timeline = {10, SCREEN_HEIGHT - 20, SCREEN_WIDTH - 20, 5}
     };
 
@@ -266,4 +292,3 @@ int main() {
     CloseWindow();
     return 0;
 }
-
