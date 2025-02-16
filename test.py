@@ -1,17 +1,22 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-def generate_random_wave(sample_rate=1000, duration=1, randomness=0.5):
-    """Generate a randomized wave by summing multiple sine waves of different frequencies."""
+def generate_balanced_wave(sample_rate=1000, duration=1, randomness=0.5):
+    """Generate a randomized wave that always has both positive and negative parts."""
     t = np.linspace(0, duration, sample_rate * duration, endpoint=False)
-    wave = np.sin(2 * np.pi * 3 * t)  # Base sine wave
     
-    # Add randomness using multiple sine waves of varying frequencies & amplitudes
+    # Start with a base sine wave
+    wave = np.sin(2 * np.pi * 3 * t)  
+    
+    # Add multiple sine waves with random frequencies & amplitudes
     for _ in range(5):
         freq = np.random.uniform(1, 10)  # Random frequency
         phase = np.random.uniform(0, 2 * np.pi)  # Random phase
         amp = np.random.uniform(0.3, 1.0) * randomness  # Random amplitude
         wave += amp * np.sin(2 * np.pi * freq * t + phase)
+    
+    # Subtract the mean to keep wave oscillating around zero
+    wave -= np.mean(wave)
     
     return t, wave
 
@@ -45,7 +50,7 @@ def visualize_cycles(t, wave, cycles):
     plt.show()
 
 # Run the steps
-t, wave = generate_random_wave()
+t, wave = generate_balanced_wave()
 zero_crossings = find_zero_crossings(t, wave)
 cycles = split_into_full_cycles(t, wave, zero_crossings)
 visualize_cycles(t, wave, cycles)
