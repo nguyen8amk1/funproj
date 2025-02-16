@@ -21,36 +21,60 @@ def find_zero_crossings(wave):
             crossings.append(i)
     return crossings
 
-# Extract cycles using zero crossings
-def extract_cycles(times, wave, crossings):
+# Extract cycles and align them
+def extract_cycles2(times, wave, crossings):
     cycles = []
-    for i in range(len(crossings) - 2):  # Ensure full cycles
+    for i in range(len(crossings) - 2):  # Need full cycles
         start, end = crossings[i], crossings[i + 2]
-        cycle_time = times[start:end]
         cycle_values = wave[start:end]
 
-        # Normalize length to avoid distortion
+        # Align cycle at its peak
+        peak_index = np.argmax(np.abs(cycle_values))
+        cycle_values = np.roll(cycle_values, -peak_index)
+
+        # Normalize time to a fixed length
         resampled_time = np.linspace(0, 1, 100)
         resampled_values = np.interp(resampled_time, np.linspace(0, 1, len(cycle_values)), cycle_values)
-
-        # Normalize to prevent flattening
-        resampled_values -= np.mean(resampled_values)  # Center around 0
-        resampled_values /= np.max(np.abs(resampled_values))  # Normalize amplitude
 
         cycles.append(resampled_values)
     
     return np.array(cycles)
 
-# Compute the average cycle
-def compute_average_cycle(cycles):
-    return np.mean(cycles, axis=0) * np.max(np.abs(cycles))  # Scale back amplitude
+def extract_cycles1(times, wave, crossings):
+    cycles = []
+    for i in range(len(crossings) - 2):  # Ensure full cycles
+        start, end = crossings[i], crossings[i + 2]
+        cycle_values = wave[start:end]
+        # Normalize length to avoid distortion
+        resampled_time = np.linspace(0, 1, 100)
+        resampled_values = np.interp(resampled_time, np.linspace(0, 1, len(cycle_values)), cycle_values)
+        # Normalize to prevent flattening
+        resampled_values -= np.mean(resampled_values)  # Center around 0
+        resampled_values /= np.max(np.abs(resampled_values))  # Normalize amplitude
+        cycles.append(resampled_values)
+    
+    return np.array(cycles)
 
-# Plot results
+# Compute the most "average-looking" cycle
+def compute_average_cycle(cycles):
+    avg_cycle = np.mean(cycles, axis=0)
+
+    # Restore original amplitude
+    avg_cycle *= np.max(np.abs(cycles)) / np.max(np.abs(avg_cycle))
+
+    return avg_cycle
+
+# Plot the cycles and averaged cycle
 def plot_cycles(cycles, avg_cycle):
     plt.figure(figsize=(10, 5))
+    
+    # Plot all cycles in gray
     for cycle in cycles:
         plt.plot(np.linspace(0, 1, len(cycle)), cycle, color='gray', alpha=0.3)
+
+    # Plot the final averaged cycle in red
     plt.plot(np.linspace(0, 1, len(avg_cycle)), avg_cycle, color='red', linewidth=2, label="Averaged Cycle")
+
     plt.xlabel("Normalized Time")
     plt.ylabel("Wave Amplitude")
     plt.legend()
@@ -61,6 +85,7 @@ filename = "wave.txt"
 times, wave = read_wave_from_file(filename)
 wave -= np.mean(wave)  # Center the wave
 crossings = find_zero_crossings(wave)
-cycles = extract_cycles(times, wave, crossings)
+cycles = extract_cycles2(times, wave, crossings)
 avg_cycle = compute_average_cycle(cycles)
+
 plot_cycles(cycles, avg_cycle)
